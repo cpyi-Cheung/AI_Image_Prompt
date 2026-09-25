@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎨 AI 生圖提示詞生成器</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: #f5f6fb;
+    background-image:
+      radial-gradient(circle at 0% 0%, #e0e7ff 0%, transparent 42%),
+      radial-gradient(circle at 100% 0%, #fce7f3 0%, transparent 42%);
+    background-attachment: fixed;
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 26px 16px 80px;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ---------- 標題 ---------- */
+  .hero { text-align: center; margin-bottom: 26px; }
+  .hero h1 {
+    font-size: clamp(23px, 4vw, 34px);
+    margin: 0 0 8px;
+    letter-spacing: .5px;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p { color: #6b7280; margin: 0 0 16px; font-size: 15px; }
+
+  .formula {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    justify-content: center; align-items: center;
+    font-size: 12.5px;
+  }
+  .formula span {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+    padding: 4px 12px; font-weight: 600; color: #4b5563;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .formula b { color: #c7cbd4; font-weight: 400; }
+
+  /* ---------- 卡片格狀 ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #eceef4;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(16,24,40,.04);
+    transition: box-shadow .2s, border-color .2s, transform .2s;
+  }
+  .card:hover {
+    border-color: #d9d5f7;
+    box-shadow: 0 8px 22px rgba(99,102,241,.10);
+  }
+  .card.full { grid-column: 1 / -1; }
+
+  .card label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .card .hint { font-size: 12px; color: #9ca3af; margin-bottom: 10px; }
+
+  select, input[type=text] {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafbfd;
+    color: #1f2937;
+    outline: none;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  select:focus, input[type=text]:focus {
+    border-color: #6366f1;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+  }
+
+  /* 停用的輸入框（場景與自訂背景互斥） */
+  input[type=text]:disabled {
+    background: #f0f1f5;
+    color: #b0b6c3;
+    cursor: not-allowed;
+    border-color: #eceef4;
+  }
+
+  .dual { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .dual { grid-template-columns: 1fr; } }
+  .mini-label { font-size: 11px; color: #9ca3af; margin-bottom: 4px; display: block; font-weight: 600; }
+
+  /* ---------- 輸出區 ---------- */
+  .out {
+    background: #fff;
+    border: 1px solid #eceef4;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 10px 34px rgba(16,24,40,.07);
+  }
+
+  .out-head {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .tabs { display: flex; gap: 4px; background: #f1f2f7; padding: 4px; border-radius: 10px; }
+  .tab {
+    border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 600;
+    padding: 6px 14px; border-radius: 7px; cursor: pointer; color: #6b7280;
+    transition: all .15s;
+  }
+  .tab.active { background: #fff; color: #4f46e5; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    font: inherit; font-size: 13.5px; font-weight: 600;
+    padding: 8px 16px; border-radius: 10px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn.primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(99,102,241,.35);
+  }
+  .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 7px 20px rgba(99,102,241,.45); }
+  .btn.primary:active { transform: translateY(0); }
+  .btn.ghost { background: #fff; border-color: #e5e7eb; color: #4b5563; }
+  .btn.ghost:hover { border-color: #c7d2fe; color: #4f46e5; background: #f5f3ff; }
+
+  .preview {
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #f8f9fc;
+    border: 1.5px dashed #e0e3ec;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 0;
+    min-height: 112px;
+    color: #1f2937;
+    transition: background .2s;
+  }
+  .preview.empty { color: #b0b6c3; }
+
+  @keyframes flash {
+    0%   { background: #eef2ff; border-color: #6366f1; }
+    100% { background: #f8f9fc; border-color: #e0e3ec; }
+  }
+  .preview.flash { animation: flash .7s ease; }
+
+  .foot-tip {
+    margin-top: 12px; font-size: 12.5px; color: #9ca3af; text-align: center;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 30px;
+    transform: translateX(-50%) translateY(20px);
+    background: #111827; color: #fff;
+    padding: 10px 22px; border-radius: 999px;
+    font-size: 14px; font-weight: 600;
+    opacity: 0; pointer-events: none;
+    transition: all .25s; z-index: 99;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="hero">
+    <h1>🎨 AI 生圖提示詞生成器</h1>
+    <p>照著步驟點一點、填一填，提示詞自動生成，一鍵複製就能去生圖！</p>
+    <div class="formula">
+      <span>① 主體</span><b>＋</b>
+      <span>② 排版</span><b>＋</b>
+      <span>③ 場景/背景</span><b>＋</b>
+      <span>④ 自訂背景</span><b>＋</b>
+      <span>⑤ 風格</span><b>＋</b>
+      <span>⑥ 光線</span><b>＋</b>
+      <span>⑦ 色彩</span><b>＋</b>
+      <span>⑧ 構圖</span><b>＋</b>
+      <span>⑨ 細節</span><b>＋</b>
+      <span>⑩ 情緒</span><b>＋</b>
+      <span>⑪ 文字</span>
+    </div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <section class="out">
+    <div class="out-head">
+      <div class="tabs">
+        <button class="tab active" data-lang="zh">中文提示詞</button>
+        <button class="tab" data-lang="en">English Prompt</button>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="btnRandom">🎲 隨機靈感</button>
+        <button class="btn ghost" id="btnClear">🧹 清空</button>
+        <button class="btn ghost" id="btnGen">✨ 一鍵生成</button>
+        <button class="btn primary" id="btnCopy">📋 一鍵複製</button>
+      </div>
+    </div>
+
+    <pre class="preview empty" id="preview"></pre>
+
+    <div class="foot-tip">💡 小訣竅：主體放最前面，AI 最容易抓到重點；英文提示詞在多數工具中效果更穩定。</div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   1. 選項資料
+   ========================================================= */
+const FIELDS = [
+  {
+    key: 'subject', icon: '🎯', title: '① 主體 Subject', type: 'bilingual',
+    hint: '畫面中最重要的東西是什麼？（人、動物、物品、動作）',
+    phZh: '例：一隻戴著飛行帽的橘貓',
+    phEn: '例：a ginger cat wearing an aviator hat'
+  },
+  {
+    key: 'layout', icon: '📰', title: '② 圖片用途 / 排版 Layout', type: 'select',
+    hint: '這張圖主要是用來做什麼的？（海報、信息圖等）',
+    options: [
+      { zh: '一般插畫（無特殊排版）', en: 'general illustration' },
+      { zh: '圖文海報（大標題、排版設計）', en: 'poster design with typography, graphic design' },
+      { zh: '信息圖（分區塊、圖示、數據呈現）', en: 'infographic, information layout, data visualization' },
+      { zh: '卡通/漫畫（分鏡、對話框）', en: 'comic strip, cartoon panel layout' }
+    ]
+  },
+  {
+    key: 'scene', icon: '🏞️', title: '③ 場景 / 背景 Scene & Background', type: 'select',
+    hint: '主角在哪裡？或選擇材質、抽象背景（若在此選擇，第④步自訂背景將無法填寫）',
+    options: [
+      /* --- 智能選項（置頂） --- */
+      { group: '✨ 智能選項' },
+      { 
+        zh: '✨ 智能匹配背景（AI 依主體自動構思）', 
+        en: '✨ appropriate contextual background matching the subject (AI inferred)', 
+        smart: true 
+      },
+
+      /* --- 實景場景 --- */
+      { group: '實景場景' },
+      { zh: '在陽光灑落的森林裡', en: 'in a sunlit forest' },
+      { zh: '在霓虹閃爍的夜晚街道上', en: 'on a neon-lit street at night' },
+      { zh: '在一望無際的沙漠中', en: 'in an endless desert' },
+      { zh: '在海邊的懸崖上', en: 'on a seaside cliff' },
+      { zh: '在溫馨的木造小屋裡', en: 'inside a cozy wooden cabin' },
+      { zh: '在未來感十足的太空站裡', en: 'inside a futuristic space station' },
+      { zh: '在雨天咖啡廳的窗邊', en: 'by the window of a cafe on a rainy day' },
+      { zh: '在櫻花盛開的庭院裡', en: 'in a courtyard full of cherry blossoms' },
+      { zh: '在純白背景前（商品照）', en: 'on a pure white background' },
+      { zh: '在古老神秘的圖書館裡', en: 'in an ancient mysterious library' },
+      { zh: '在雲海之上的山頂', en: 'on a mountain peak above a sea of clouds' },
+      { zh: '在熱鬧的傳統市場裡', en: 'in a bustling traditional market' },
+      
+      /* --- PPT / 抽象背景 --- */
+      { group: 'PPT / 抽象背景（只有顏色圖案）' },
+      { zh: '純色背景（如：PPT 單色底）', en: 'solid color background' },
+      { zh: '柔和漸層背景', en: 'soft gradient background' },
+      { zh: '幾何圖形背景', en: 'geometric pattern background' },
+      { zh: '極簡線條背景', en: 'minimalist line pattern background' },
+      { zh: '點陣/網格背景', en: 'dot grid pattern background' },
+      { zh: '黑板/粉筆背景', en: 'chalkboard background' },
+      { zh: '水彩暈染背景', en: 'watercolor wash background' },
+      { zh: '科技電路板背景', en: 'tech circuit board background' },
+      { zh: '抽象流體背景', en: 'abstract fluid background' },
+      { zh: '無背景（透明）', en: 'no background, transparent' },
+
+      /* --- 材質 / 紋理背景 --- */
+      { group: '材質 / 紋理背景（手作質感）' },
+      { zh: '牛皮紙背景', en: 'kraft paper background' },
+      { zh: '皺紙 / 揉皺的紙背景', en: 'wrinkled paper background' },
+      { zh: '復古報紙背景', en: 'vintage newspaper background' },
+      { zh: '羊皮紙 / 舊地圖背景', en: 'parchment / old map background' },
+      { zh: '水彩紙紋理', en: 'watercolor paper texture' },
+      { zh: '畫布 / 帆布紋理', en: 'canvas texture' },
+      { zh: '木紋 / 木桌背景', en: 'wood texture / wooden desk background' },
+      { zh: '大理石紋理', en: 'marble texture' },
+      { zh: '軟木板背景', en: 'corkboard background' },
+      { zh: '亞麻布 / 織物紋理', en: 'linen texture' },
+      { zh: '毛毡布背景', en: 'felt background' },
+      { zh: '水泥牆背景', en: 'concrete wall background' },
+      { zh: '金屬 / 拉絲金屬背景', en: 'brushed metal background' },
+
+      /* --- 藝術 / 裝飾背景 --- */
+      { group: '藝術 / 裝飾背景' },
+      { zh: '水墨暈染背景', en: 'ink wash background' },
+      { zh: '油畫筆觸背景', en: 'oil paint strokes background' },
+      { zh: '和紙 / 日式紋理', en: 'washi paper / Japanese texture' },
+      { zh: '剪貼簿 / 拼貼風格', en: 'scrapbook / collage style' },
+      { zh: '撕紙效果背景', en: 'torn paper effect background' },
+      { zh: '星空 / 宇宙背景', en: 'starry sky / cosmos background' },
+      { zh: '藍圖背景', en: 'blueprint background' },
+      { zh: '毛玻璃 / 模糊背景', en: 'frosted glass / blurred background' },
+      { zh: '全息 / 雷射光澤', en: 'holographic / iridescent' },
+      { zh: '燙金 / 金箔背景', en: 'gold foil background' },
+      { zh: '黑板報背景', en: 'blackboard newspaper background' },
+      { zh: '筆記本 / 橫線紙背景', en: 'notebook paper / lined paper background' },
+      { zh: '棋盤格背景', en: 'checkerboard background' },
+      { zh: '波普藝術網點', en: 'pop art halftone background' }
+    ]
+  },
+  {
+    key: 'customScene', icon: '✏️', title: '④ 自訂場景 / 背景（選填）', type: 'bilingual',
+    hint: '若第③步場景選單已選擇選項，本欄位將自動停用，避免提示詞衝突',
+    phZh: '例：淺藍色底，有白色雲朵圖案',
+    phEn: 'Example: light blue background with white cloud patterns'
+  },
+  {
+    key: 'style', icon: '🖌️', title: '⑤ 風格 Style', type: 'select',
+    hint: '想要什麼樣的畫風？',
+    options: [
+      { zh: '寫實攝影風格', en: 'photorealistic photography' },
+      { zh: '日系動漫插畫風格', en: 'anime illustration style' },
+      { zh: '水彩畫風格', en: 'watercolor painting' },
+      { zh: '古典油畫風格', en: 'classical oil painting' },
+      { zh: '3D 卡通渲染風格', en: '3D cartoon render' },
+      { zh: '像素藝術風格', en: 'pixel art' },
+      { zh: '賽博龐克風格', en: 'cyberpunk style' },
+      { zh: '吉卜力動畫風格', en: 'Studio Ghibli style' },
+      { zh: '鉛筆素描風格', en: 'pencil sketch' },
+      { zh: '剪紙藝術風格', en: 'paper cut art' },
+      { zh: '極簡線條風格', en: 'minimalist line art' },
+      { zh: '蒸氣波風格', en: 'vaporwave style' },
+      { zh: '黏土動畫風格', en: 'claymation style' },
+      { zh: '低多邊形風格', en: 'low poly style' },
+      { zh: '扁平插畫風格', en: 'flat illustration style' },
+      { zh: '手繪筆記風格', en: 'hand-drawn note style, sketchnote' },
+      { zh: '思維導圖風格', en: 'mind map style' },
+      { zh: '黑板粉筆風格', en: 'blackboard chalk drawing style' },
+      { zh: '雜誌信息圖風格', en: 'magazine infographic style' },
+      { zh: '3D 等距風格', en: '3D isometric style' },
+      { zh: '卡通可愛風格', en: 'cute cartoon style' },
+      { zh: '水彩繪本風格', en: 'watercolor picture book illustration' },
+      { zh: '科技數據風格', en: 'tech data visualization style' },
+      { zh: '中國古風', en: 'traditional Chinese painting style' }
+    ]
+  },
+  {
+    key: 'light', icon: '💡', title: '⑥ 光線 Lighting', type: 'select',
+    hint: '光從哪裡來？什麼氛圍？',
+    options: [
+      { zh: '柔和晨光', en: 'soft morning light' },
+      { zh: '黃金時刻的暖陽', en: 'golden hour lighting' },
+      { zh: '戲劇性的側光', en: 'dramatic side lighting' },
+      { zh: '霓虹燈光', en: 'neon lighting' },
+      { zh: '逆光剪影', en: 'backlit silhouette' },
+      { zh: '攝影棚柔光', en: 'studio softbox lighting' },
+      { zh: '溫暖的燭光', en: 'warm candlelight' },
+      { zh: '清冷的月光', en: 'cool moonlight' },
+      { zh: '體積光（耶穌光）', en: 'volumetric god rays' },
+      { zh: '雨地反射的霓虹光', en: 'reflections of neon on wet ground' }
+    ]
+  },
+  {
+    key: 'color', icon: '🎨', title: '⑦ 色彩 Color', type: 'select',
+    hint: '整體色調的感覺',
+    options: [
+      { zh: '溫暖色調', en: 'warm color palette' },
+      { zh: '冷色調', en: 'cool color palette' },
+      { zh: '高飽和鮮豔色彩', en: 'vibrant saturated colors' },
+      { zh: '低飽和莫蘭迪色', en: 'muted morandi color palette' },
+      { zh: '黑白攝影', en: 'black and white' },
+      { zh: '粉彩柔色', en: 'pastel colors' },
+      { zh: '強烈對比色', en: 'high contrast colors' },
+      { zh: '復古底片色調', en: 'retro film color grading' },
+      { zh: '藍橘對比色', en: 'teal and orange color grading' }
+    ]
+  },
+  {
+    key: 'comp', icon: '📷', title: '⑧ 構圖 / 鏡頭 Camera', type: 'select',
+    hint: '鏡頭怎麼擺？',
+    options: [
+      { zh: '特寫鏡頭', en: 'close-up shot' },
+      { zh: '中景', en: 'medium shot' },
+      { zh: '全身鏡頭', en: 'full body shot' },
+      { zh: '鳥瞰視角', en: "bird's eye view" },
+      { zh: '低角度仰視', en: 'low angle shot' },
+      { zh: '對稱構圖', en: 'symmetrical composition' },
+      { zh: '三分法構圖', en: 'rule of thirds composition' },
+      { zh: '淺景深（背景模糊）', en: 'shallow depth of field, blurred background' },
+      { zh: '廣角鏡頭', en: 'wide angle lens' },
+      { zh: '微距特寫', en: 'macro shot' },
+      { zh: '過肩鏡頭', en: 'over-the-shoulder shot' }
+    ]
+  },
+  {
+    key: 'detail', icon: '✨', title: '⑨ 細節 / 畫質 Details', type: 'select',
+    hint: '品質關鍵字，讓圖更精緻',
+    options: [
+      { zh: '超高細節', en: 'ultra detailed' },
+      { zh: '精緻的紋理', en: 'intricate textures' },
+      { zh: '8K 高解析度', en: '8k resolution' },
+      { zh: '電影感', en: 'cinematic' },
+      { zh: '獲獎攝影作品', en: 'award-winning' },
+      { zh: '銳利對焦', en: 'sharp focus' },
+      { zh: '柔和陰影', en: 'soft shadows' },
+      { zh: 'HDR 高動態範圍', en: 'HDR' }
+    ]
+  },
+  {
+    key: 'mood', icon: '💫', title: '⑩ 情緒 / 氛圍 Mood', type: 'select',
+    hint: '想帶給觀眾什麼感覺？',
+    options: [
+      { zh: '寧靜祥和', en: 'serene and peaceful' },
+      { zh: '夢幻唯美', en: 'dreamy and ethereal' },
+      { zh: '神秘詭譎', en: 'mysterious and eerie' },
+      { zh: '歡樂活潑', en: 'joyful and lively' },
+      { zh: '孤獨寂寥', en: 'lonely and melancholic' },
+      { zh: '史詩壯闊', en: 'epic and grand' },
+      { zh: '溫馨療癒', en: 'cozy and heartwarming' },
+      { zh: '未來科技感', en: 'futuristic and technological' }
+    ]
+  },
+  {
+    key: 'text', icon: '📝', title: '⑪ 文字內容 Text (選填)', type: 'bilingual',
+    hint: '海報或信息圖需要的文字（AI生圖對中文字支援有限，建議先產圖再用 Canva 等工具加上文字）',
+    phZh: '例：嶺南名果——荔枝',
+    phEn: 'Example: Lingnan Fruit - Lychee'
+  }
+];
+
+/* ===== 畫面比例 ===== */
+const RATIOS = [
+  { value: '1:1',  zh: '1:1 正方形（頭像、圖示）',       en: '1:1 (square)' },
+  { value: '16:9', zh: '16:9 橫向・寬螢幕（電腦桌布、YouTube）', en: '16:9 (landscape, widescreen)' },
+  { value: '9:16', zh: '9:16 直向・手機豎屏（手機桌布、限時動態）', en: '9:16 (portrait, phone screen)' },
+  { value: '4:3',  zh: '4:3 橫向・傳統比例（簡報、舊式相機）',   en: '4:3 (landscape, classic)' },
+  { value: '3:4',  zh: '3:4 直向・傳統直幅（人像、海報）',     en: '3:4 (portrait)' },
+  { value: '21:9', zh: '21:9 超寬橫向・電影感（電影、全景）',  en: '21:9 (ultrawide, cinematic)' }
+];
+
+const DEFAULT_NEG = 'blurry, low quality, deformed hands, extra fingers, watermark, text, signature';
+
+/* 隨機靈感用的主體清單 */
+const SUBJECTS = [
+  ['一隻戴著飛行帽的橘貓', 'a ginger cat wearing an aviator hat'],
+  ['一位撐著紅傘的少女', 'a young girl holding a red umbrella'],
+  ['一台復古偉士牌機車', 'a vintage Vespa scooter'],
+  ['一碗熱騰騰的牛肉麵', 'a steaming bowl of beef noodles'],
+  ['一隻正在打瞌睡的柴犬', 'a Shiba Inu dozing off'],
+  ['一位彈吉他的街頭藝人', 'a street musician playing guitar'],
+  ['一杯有拉花的拿鐵', 'a latte with latte art'],
+  ['一隻戴著皇冠的青蛙', 'a frog wearing a crown'],
+  ['一位身穿太空裝的太空人', 'an astronaut in a spacesuit'],
+  ['一座漂浮在空中的島嶼', 'a floating island in the sky'],
+  ['一位正在旋轉的芭蕾舞者', 'a ballet dancer mid-pirouette'],
+  ['一台復古拍立得相機', 'a vintage instant camera']
+];
+
+/* =========================================================
+   2. 狀態
+   ========================================================= */
+let currentLang = 'zh';
+let zhOut = '';
+let enOut = '';
+
+/* 記錄自訂場景欄位的預設 placeholder，供解鎖時還原使用 */
+const customScenePlaceholders = { zh: '', en: '' };
+/* 避免每次切換都重複彈出智能提示 */
+let smartToastShown = false;
+
+const grid    = document.getElementById('grid');
+const preview = document.getElementById('preview');
+const toastEl = document.getElementById('toast');
+
+/* =========================================================
+   3. 建立表單
+   ========================================================= */
+function buildForm() {
+  let html = '';
+
+  FIELDS.forEach(f => {
+    if (f.type === 'bilingual') {
+      html += `
+      <div class="card full">
+        <label>${f.icon} ${f.title}</label>
+        <div class="hint">${f.hint}</div>
+        <div class="dual">
+          <div>
+            <span class="mini-label">中文</span>
+            <input type="text" id="f-${f.key}-zh" placeholder="${f.phZh}">
+          </div>
+          <div>
+            <span class="mini-label">English（可留空）</span>
+            <input type="text" id="f-${f.key}-en" placeholder="${f.phEn}">
+          </div>
+        </div>
+      </div>`;
+
+      /* 記錄自訂場景的預設 placeholder */
+      if (f.key === 'customScene') {
+        customScenePlaceholders.zh = f.phZh;
+        customScenePlaceholders.en = f.phEn;
+      }
+    } else {
+      /* 處理 select 選項，支援 optgroup 分組 */
+      let optionsHtml = '<option value="">— 不指定 —</option>';
+      let inGroup = false;
+      
+      f.options.forEach((o, i) => {
+        if (o.group) {
+          if (inGroup) optionsHtml += '</optgroup>';
+          optionsHtml += `<optgroup label="${o.group}">`;
+          inGroup = true;
+        } else {
+          optionsHtml += `<option value="${i}">${o.zh}</option>`;
+        }
+      });
+      if (inGroup) optionsHtml += '</optgroup>';
+
+      html += `
+      <div class="card">
+        <label>${f.icon} ${f.title}</label>
+        <div class="hint">${f.hint}</div>
+        <select id="f-${f.key}">
+          ${optionsHtml}
+        </select>
+      </div>`;
+    }
+  });
+
+  /* 畫面比例 */
+  html += `
+  <div class="card">
+    <label>📐 畫面比例 Aspect Ratio</label>
+    <div class="hint">直式 / 橫式 / 方形，選項都有中文說明</div>
+    <select id="f-ratio">
+      <option value="">— 不指定 —</option>
+      ${RATIOS.map(r => `<option value="${r.value}">${r.zh}</option>`).join('')}
+    </select>
+  </div>`;
+
+  /* 負面提示詞 */
+  html += `
+  <div class="card full">
+    <label>🚫 負面提示詞 Negative Prompt</label>
+    <div class="hint">告訴 AI「不要畫什麼」，可留空</div>
+    <input type="text" id="f-negative" value="${DEFAULT_NEG}">
+  </div>`;
+
+  grid.innerHTML = html;
+
+  FIELDS.filter(f => f.type === 'select').forEach(f => {
+    document.getElementById('f-' + f.key)._opts = f.options;
+  });
+}
+
+/* =========================================================
+   4. 讀值
+   ========================================================= */
+function val(id) {
+  const el = document.getElementById('f-' + id);
+  return el ? el.value.trim() : '';
+}
+
+function getSel(key) {
+  const el = document.getElementById('f-' + key);
+  if (!el || el.value === '') return null;
+  return el._opts[Number(el.value)];
+}
+
+/* =========================================================
+   5. 場景與自訂背景的互斥邏輯（UI 狀態更新）
+   ========================================================= */
+function updateSceneUI() {
+  const el = document.getElementById('f-scene');
+  if (!el) return;
+
+  const selected = el.value === '' ? null : el._opts[Number(el.value)];
+  const hasSceneSelection = selected !== null; // 只要下拉選單有選項（含智能匹配）
+  const isSmart = !!(selected && selected.smart);
+
+  const zhInput = document.getElementById('f-customScene-zh');
+  const enInput = document.getElementById('f-customScene-en');
+  if (!zhInput || !enInput) return;
+
+  if (hasSceneSelection) {
+    /* 第3步有選擇 → 第4步自訂背景自動停用並清空 */
+    zhInput.disabled = true;
+    enInput.disabled = true;
+    zhInput.value = '';
+    enInput.value = '';
+    zhInput.placeholder = isSmart ? '（智能匹配模式下不需填寫）' : '（已選擇場景，自訂背景無法填寫）';
+    enInput.placeholder = isSmart ? '(not needed in smart mode)' : '(scene selected, custom background disabled)';
+
+    if (isSmart && !smartToastShown) {
+      toast('💡 已選擇智能匹配，AI 會依主體自動構思背景！');
+      smartToastShown = true;
+    }
+  } else {
+    /* 第3步不指定 → 第4步自訂背景可以填寫 */
+    zhInput.disabled = false;
+    enInput.disabled = false;
+    zhInput.placeholder = customScenePlaceholders.zh;
+    enInput.placeholder = customScenePlaceholders.en;
+  }
+}
+
+/* =========================================================
+   6. 生成提示詞
+   ========================================================= */
+function generate() {
+  const zhParts = [];
+  const enParts = [];
+
+  /* ---- 1. 主體 ---- */
+  const subZh = val('subject-zh');
+  const subEn = val('subject-en');
+  if (subZh) zhParts.push(subZh);
+  if (subEn || subZh) enParts.push(subEn || subZh);
+
+  /* ---- 2. 排版 ---- */
+  const layoutObj = getSel('layout');
+  if (layoutObj) {
+    zhParts.push(layoutObj.zh);
+    enParts.push(layoutObj.en);
+  }
+
+  /* ---- 3. 場景 / 背景 與 4. 自訂背景（互斥，下拉優先） ---- */
+  const selectedScene = getSel('scene');
+  const customSceneZh = val('customScene-zh');
+  const customSceneEn = val('customScene-en');
+
+  if (selectedScene) {
+    /* 下拉選單有值，優先使用（自訂背景此時已被停用） */
+    zhParts.push(selectedScene.zh);
+    enParts.push(selectedScene.en);
+  } else if (customSceneZh) {
+    /* 下拉選單為空，且有自訂背景 */
+    zhParts.push('背景：' + customSceneZh);
+    enParts.push('background: ' + (customSceneEn || customSceneZh));
+  }
+
+  /* ---- 5. 其餘欄位 ---- */
+  const REST = ['style', 'light', 'color', 'comp', 'detail', 'mood'];
+  REST.forEach(k => {
+    const o = getSel(k);
+    if (o) {
+      zhParts.push(o.zh);
+      enParts.push(o.en);
+    }
+  });
+
+  /* ---- 6. 文字內容 ---- */
+  const txtZh = val('text-zh');
+  const txtEn = val('text-en');
+  if (txtZh) zhParts.push('文字內容：' + txtZh);
+  const enText = txtEn || txtZh;
+  if (enText) enParts.push('text: ' + enText);
+
+  /* ---- 7. 畫面比例 ---- */
+  const ratioVal = val('ratio');
+  const ratioObj = RATIOS.find(r => r.value === ratioVal) || null;
+  if (ratioObj) {
+    zhParts.push('畫面比例 ' + ratioObj.zh);
+    enParts.push('aspect ratio ' + ratioObj.en);
+  }
+
+  /* ===== 8. 組合最終提示詞（自動加上「請幫我生成」的指令） ===== */
+  if (zhParts.length > 0) {
+    zhOut = '請幫我生成一張圖片：' + zhParts.join('，');
+  } else {
+    zhOut = '';
+  }
+
+  if (enParts.length > 0) {
+    enOut = 'Please generate an image of: ' + enParts.join(', ');
+  } else {
+    enOut = '';
+  }
+
+  /* ---- 負面提示詞 ---- */
+  const neg = val('negative');
+  if (neg) {
+    zhOut += '\n\n🚫 負面提示詞：' + neg;
+    enOut += '\n\nNegative prompt: ' + neg;
+  }
+
+  render();
+}
+
+/* =========================================================
+   7. 畫面渲染
+   ========================================================= */
+function render() {
+  const txt = currentLang === 'zh' ? zhOut : enOut;
+  if (txt) {
+    preview.textContent = txt;
+    preview.classList.remove('empty');
+  } else {
+    preview.textContent = '👈 先在上面選擇或輸入，提示詞就會自動出現在這裡';
+    preview.classList.add('empty');
+  }
+}
+
+/* =========================================================
+   8. 複製功能
+   ========================================================= */
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) { }
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  return ok;
+}
+
+/* =========================================================
+   9. Toast 提示
+   ========================================================= */
+let toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+/* =========================================================
+   10. 事件綁定
+   ========================================================= */
+function bindEvents() {
+  grid.addEventListener('input', generate);
+  grid.addEventListener('change', generate);
+
+  /* 場景下拉選單變更 → 更新自訂背景欄位狀態 */
+  const sceneEl = document.getElementById('f-scene');
+  if (sceneEl) {
+    sceneEl.addEventListener('change', updateSceneUI);
+  }
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLang = btn.dataset.lang;
+      render();
+    });
+  });
+
+  document.getElementById('btnCopy').addEventListener('click', async () => {
+    const txt = currentLang === 'zh' ? zhOut : enOut;
+    if (!txt) { toast('還沒有提示詞喔，先選幾個選項吧！'); return; }
+    const ok = await copyText(txt);
+    toast(ok ? '✅ 已複製！貼到 AI 生圖工具就能用' : '❌ 複製失敗，請手動選取文字');
+  });
+
+  document.getElementById('btnGen').addEventListener('click', () => {
+    generate();
+    document.querySelector('.out').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    preview.classList.remove('flash');
+    void preview.offsetWidth;
+    preview.classList.add('flash');
+    if (!zhOut) toast('先選幾個選項，或按 🎲 隨機靈感！');
+  });
+
+  document.getElementById('btnRandom').addEventListener('click', () => {
+    const s = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+    document.getElementById('f-subject-zh').value = s[0];
+    document.getElementById('f-subject-en').value = s[1];
+
+    FIELDS.filter(f => f.type === 'select').forEach(f => {
+      const el = document.getElementById('f-' + f.key);
+      el.value = String(Math.floor(Math.random() * f.options.length));
+    });
+
+    const r = RATIOS[Math.floor(Math.random() * RATIOS.length)];
+    document.getElementById('f-ratio').value = r.value;
+
+    /* 隨機時把文字與自訂場景清空 */
+    document.getElementById('f-text-zh').value = '';
+    document.getElementById('f-text-en').value = '';
+    document.getElementById('f-customScene-zh').value = '';
+    document.getElementById('f-customScene-en').value = '';
+
+    /* 因為程式設定 select 不會觸發 change，這裡手動更新 UI */
+    updateSceneUI();
+
+    generate();
+    toast('🎲 隨機靈感已生成！');
+  });
+
+  document.getElementById('btnClear').addEventListener('click', () => {
+    document.getElementById('f-subject-zh').value = '';
+    document.getElementById('f-subject-en').value = '';
+    FIELDS.filter(f => f.type === 'select').forEach(f => {
+      document.getElementById('f-' + f.key).value = '';
+    });
+    document.getElementById('f-text-zh').value = '';
+    document.getElementById('f-text-en').value = '';
+    document.getElementById('f-customScene-zh').value = '';
+    document.getElementById('f-customScene-en').value = '';
+    document.getElementById('f-ratio').value = '';
+    document.getElementById('f-negative').value = DEFAULT_NEG;
+
+    /* 還原智能提示狀態與 UI */
+    smartToastShown = false;
+    updateSceneUI();
+
+    generate();
+    toast('🧹 已清空');
+  });
+}
+
+/* =========================================================
+   11. 啟動
+   ========================================================= */
+buildForm();
+bindEvents();
+updateSceneUI();
+generate();
+</script>
+</body>
+</html>
