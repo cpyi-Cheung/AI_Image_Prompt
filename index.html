@@ -201,12 +201,10 @@
       <span>③ 場景/背景</span><b>＋</b>
       <span>④ 自訂背景</span><b>＋</b>
       <span>⑤ 風格</span><b>＋</b>
-      <span>⑥ 光線</span><b>＋</b>
-      <span>⑦ 色彩</span><b>＋</b>
-      <span>⑧ 構圖</span><b>＋</b>
-      <span>⑨ 細節</span><b>＋</b>
-      <span>⑩ 情緒</span><b>＋</b>
-      <span>⑪ 文字</span>
+      <span>⑥ 色彩</span><b>＋</b>
+      <span>⑦ 構圖</span><b>＋</b>
+      <span>⑧ 情緒</span><b>＋</b>
+      <span>⑨ 文字</span>
     </div>
   </header>
 
@@ -367,23 +365,7 @@ const FIELDS = [
     ]
   },
   {
-    key: 'light', icon: '💡', title: '⑥ 光線 Lighting', type: 'select',
-    hint: '光從哪裡來？什麼氛圍？',
-    options: [
-      { zh: '柔和晨光', en: 'soft morning light' },
-      { zh: '黃金時刻的暖陽', en: 'golden hour lighting' },
-      { zh: '戲劇性的側光', en: 'dramatic side lighting' },
-      { zh: '霓虹燈光', en: 'neon lighting' },
-      { zh: '逆光剪影', en: 'backlit silhouette' },
-      { zh: '攝影棚柔光', en: 'studio softbox lighting' },
-      { zh: '溫暖的燭光', en: 'warm candlelight' },
-      { zh: '清冷的月光', en: 'cool moonlight' },
-      { zh: '體積光（耶穌光）', en: 'volumetric god rays' },
-      { zh: '雨地反射的霓虹光', en: 'reflections of neon on wet ground' }
-    ]
-  },
-  {
-    key: 'color', icon: '🎨', title: '⑦ 色彩 Color', type: 'select',
+    key: 'color', icon: '🎨', title: '⑥ 色彩 Color', type: 'select',
     hint: '整體色調的感覺',
     options: [
       { zh: '溫暖色調', en: 'warm color palette' },
@@ -398,7 +380,7 @@ const FIELDS = [
     ]
   },
   {
-    key: 'comp', icon: '📷', title: '⑧ 構圖 / 鏡頭 Camera', type: 'select',
+    key: 'comp', icon: '📷', title: '⑦ 構圖 / 鏡頭 Camera', type: 'select',
     hint: '鏡頭怎麼擺？',
     options: [
       { zh: '特寫鏡頭', en: 'close-up shot' },
@@ -415,21 +397,7 @@ const FIELDS = [
     ]
   },
   {
-    key: 'detail', icon: '✨', title: '⑨ 細節 / 畫質 Details', type: 'select',
-    hint: '品質關鍵字，讓圖更精緻',
-    options: [
-      { zh: '超高細節', en: 'ultra detailed' },
-      { zh: '精緻的紋理', en: 'intricate textures' },
-      { zh: '8K 高解析度', en: '8k resolution' },
-      { zh: '電影感', en: 'cinematic' },
-      { zh: '獲獎攝影作品', en: 'award-winning' },
-      { zh: '銳利對焦', en: 'sharp focus' },
-      { zh: '柔和陰影', en: 'soft shadows' },
-      { zh: 'HDR 高動態範圍', en: 'HDR' }
-    ]
-  },
-  {
-    key: 'mood', icon: '💫', title: '⑩ 情緒 / 氛圍 Mood', type: 'select',
+    key: 'mood', icon: '💫', title: '⑧ 情緒 / 氛圍 Mood', type: 'select',
     hint: '想帶給觀眾什麼感覺？',
     options: [
       { zh: '寧靜祥和', en: 'serene and peaceful' },
@@ -443,7 +411,7 @@ const FIELDS = [
     ]
   },
   {
-    key: 'text', icon: '📝', title: '⑪ 文字內容 Text (選填)', type: 'bilingual',
+    key: 'text', icon: '📝', title: '⑨ 文字內容 Text (選填)', type: 'bilingual',
     hint: '海報或信息圖需要的文字（AI生圖對中文字支援有限，建議先產圖再用 Canva 等工具加上文字）',
     phZh: '例：嶺南名果——荔枝',
     phEn: 'Example: Lingnan Fruit - Lychee'
@@ -460,7 +428,8 @@ const RATIOS = [
   { value: '21:9', zh: '21:9 超寬橫向・電影感（電影、全景）',  en: '21:9 (ultrawide, cinematic)' }
 ];
 
-const DEFAULT_NEG = 'blurry, low quality, deformed hands, extra fingers, watermark, text, signature';
+/* ===== 負面提示詞（已移除「文字」「變形的手」「多餘的手指」） ===== */
+const DEFAULT_NEG = '模糊，低品質，浮水印，簽名';
 
 /* 隨機靈感用的主體清單 */
 const SUBJECTS = [
@@ -561,10 +530,10 @@ function buildForm() {
     </select>
   </div>`;
 
-  /* 負面提示詞 */
+  /* 負面提示詞（中文） */
   html += `
   <div class="card full">
-    <label>🚫 負面提示詞 Negative Prompt</label>
+    <label>🚫 負面提示詞（不希望出現的內容）</label>
     <div class="hint">告訴 AI「不要畫什麼」，可留空</div>
     <input type="text" id="f-negative" value="${DEFAULT_NEG}">
   </div>`;
@@ -598,7 +567,7 @@ function updateSceneUI() {
   if (!el) return;
 
   const selected = el.value === '' ? null : el._opts[Number(el.value)];
-  const hasSceneSelection = selected !== null; // 只要下拉選單有選項（含智能匹配）
+  const hasSceneSelection = selected !== null;
   const isSmart = !!(selected && selected.smart);
 
   const zhInput = document.getElementById('f-customScene-zh');
@@ -653,17 +622,15 @@ function generate() {
   const customSceneEn = val('customScene-en');
 
   if (selectedScene) {
-    /* 下拉選單有值，優先使用（自訂背景此時已被停用） */
     zhParts.push(selectedScene.zh);
     enParts.push(selectedScene.en);
   } else if (customSceneZh) {
-    /* 下拉選單為空，且有自訂背景 */
     zhParts.push('背景：' + customSceneZh);
     enParts.push('background: ' + (customSceneEn || customSceneZh));
   }
 
   /* ---- 5. 其餘欄位 ---- */
-  const REST = ['style', 'light', 'color', 'comp', 'detail', 'mood'];
+  const REST = ['style', 'color', 'comp', 'mood'];
   REST.forEach(k => {
     const o = getSel(k);
     if (o) {
@@ -687,7 +654,7 @@ function generate() {
     enParts.push('aspect ratio ' + ratioObj.en);
   }
 
-  /* ===== 8. 組合最終提示詞（自動加上「請幫我生成」的指令） ===== */
+  /* ===== 8. 組合最終提示詞 ===== */
   if (zhParts.length > 0) {
     zhOut = '請幫我生成一張圖片：' + zhParts.join('，');
   } else {
@@ -700,7 +667,7 @@ function generate() {
     enOut = '';
   }
 
-  /* ---- 負面提示詞 ---- */
+  /* ---- 負面提示詞（中文） ---- */
   const neg = val('negative');
   if (neg) {
     zhOut += '\n\n🚫 負面提示詞：' + neg;
@@ -816,7 +783,6 @@ function bindEvents() {
     document.getElementById('f-customScene-zh').value = '';
     document.getElementById('f-customScene-en').value = '';
 
-    /* 因為程式設定 select 不會觸發 change，這裡手動更新 UI */
     updateSceneUI();
 
     generate();
@@ -836,7 +802,6 @@ function bindEvents() {
     document.getElementById('f-ratio').value = '';
     document.getElementById('f-negative').value = DEFAULT_NEG;
 
-    /* 還原智能提示狀態與 UI */
     smartToastShown = false;
     updateSceneUI();
 
